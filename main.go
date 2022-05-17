@@ -25,7 +25,7 @@ func loadConfig() {
 	exPath := filepath.Dir(ex)
 
 	viper.SetConfigName("config")
-	viper.SetConfigFile(exPath + "/" + "config.yml")
+	viper.SetConfigFile(filepath.Join(exPath, "config.yml"))
 	viper.SetConfigType("yaml")
 	err = viper.ReadInConfig()
 	if err != nil {
@@ -33,25 +33,35 @@ func loadConfig() {
 	}
 
 	C.path = viper.GetStringSlice("path")
-	C.log = exPath + "/" + viper.GetString("log")
+	C.log = filepath.Join(exPath, viper.GetString("log"))
 }
 
 func mergeTs(dir, output string) {
 	log.Printf("Merging TS files under: %v", dir)
 
 	for i := 0; ; i++ {
-		srcFilePath := dir + "/" + strconv.Itoa(i)
+		srcFilePath := filepath.Join(dir, strconv.Itoa(i))
+
+		_, err := os.Stat(srcFilePath)
+		if os.IsNotExist(err) {
+			log.Printf("TS file %v not exist.", srcFilePath)
+			break
+		}
+
+		if err != nil {
+			log.Fatalf("Check file %v state error: %v\n", srcFilePath, err)
+		}
+
 		src, err := ioutil.ReadFile(srcFilePath)
 		if err != nil {
-			log.Printf("No TS file under %s\n", dir)
-			log.Printf("Can not open TS file with error: %v", err)
-
+			log.Printf("Can not read TS file %v with error: %v", srcFilePath, err)
 			break
 		}
 
 		log.Printf("Merging TS file: %s", srcFilePath)
 
 		dst, err := os.OpenFile(output, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		log.Println(dst.Name())
 		if err != nil {
 
 			log.Fatalf("Error open output file, with error: %v", err)
@@ -90,7 +100,7 @@ func main() {
 
 		for _, f := range files {
 			if f.IsDir() {
-				mergeTs(basePath+f.Name(), basePath+f.Name()+".mp4")
+				mergeTs(filepath.Join(basePath, f.Name()), filepath.Join(basePath, f.Name()+".mp4"))
 			}
 		}
 	}
